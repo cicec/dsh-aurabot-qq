@@ -7,6 +7,7 @@ import { textToSpeech, edgeInstalled, installEdge, voiceConverters } from '../..
 import { createSongVoice } from '../../voice/rvc.js'
 import { toMono16k } from '../../voice/wav.js'
 import { fileOf } from '../../local/local.js'
+import { ttsTagRules, stripTtsTags } from '../../voice/tts-tags.js'
 
 export default {
   id: 'voice',
@@ -14,11 +15,14 @@ export default {
   version: '1.0.0',
   description: '发语音条：把她的话念出来（关掉后想发语音时改发文字）',
   tab: 'voice',
-  files: ['voice/tts.js', 'voice/rvc.js'],
+  files: ['voice/tts.js', 'voice/rvc.js', 'voice/tts-tags.js'],
   setup(api) {
     const { hub, onebot, local, http } = api.core
 
+    api.rule((kind, cfg) => cfg.voice.enabled ? ttsTagRules(cfg.voice.engine) : [])
+
     async function speak(text) {
+      text = stripTtsTags(text, { keepForEngine: api.config().voice.engine })
       // 本地接口接管语音合成；出错退回内置
       if (api.config().voice.engine !== 'breezeblue' && local.active('tts')) {
         try {

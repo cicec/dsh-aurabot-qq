@@ -9,6 +9,8 @@
 //   - 整轮只输出 `[沉默]`（或空）= 这次不说话（群聊插话用）
 // 另外顺手把模型偶尔漏出来的 Markdown 洗掉——QQ 不渲染 Markdown。
 
+import { stripTtsTags } from '../voice/tts-tags.js'
+
 export const SILENCE = '[沉默]'
 
 /** 去掉 Markdown 痕迹，保留文字本身。 */
@@ -128,7 +130,7 @@ export function splitLines(text) {
 }
 
 function pushText(items, s) {
-  const t = stripMarkdown(String(s || '').replace(/<\/?reply[^>]*>/g, '')) // 写坏的引用标签直接去掉
+  const t = stripTtsTags(stripMarkdown(String(s || '').replace(/<\/?reply[^>]*>/g, ''))) // 写坏的引用标签直接去掉
   if (!t || isSilence(t)) return
   for (const line of splitLines(t)) if (!isSilence(line)) items.push({ kind: 'text', value: line })
 }
