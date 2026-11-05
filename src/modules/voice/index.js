@@ -20,7 +20,7 @@ export default {
 
     async function speak(text) {
       // 本地接口接管语音合成；出错退回内置
-      if (local.active('tts')) {
+      if (api.config().voice.engine !== 'breezeblue' && local.active('tts')) {
         try {
           const file = fileOf(await local.call('tts', { text }))
           if (file && existsSync(file)) return { file, engine: 'local' }

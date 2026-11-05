@@ -199,6 +199,23 @@ async function gptsovitsSynth(text, c) {
   return saveAudio(await fetchAudio(`${base}/tts?${q}`, { method: 'GET' }), 32000)
 }
 
+async function breezeblueSynth(text, c) {
+  const apiKey = String(c.apiKey || '').trim()
+  const voiceId = String(c.voiceId || '').trim()
+  if (!apiKey || !voiceId) throw new Error('请填写 BreezeBlue API Key 和 Voice ID')
+  const url = `https://api.breeze.blue/v1/text-to-speech/${encodeURIComponent(voiceId)}?output_format=wav_24000`
+  const buf = await fetchAudio(url, {
+    method: 'POST',
+    headers: { 'xi-api-key': apiKey, 'content-type': 'application/json' },
+    body: JSON.stringify({ text }),
+    redirect: 'error',
+  }, 50_000)
+  if (buf.toString('ascii', 0, 4) !== 'RIFF' || buf.toString('ascii', 8, 12) !== 'WAVE') {
+    throw new Error('BreezeBlue 没有返回 WAV 音频')
+  }
+  return saveAudio(buf, 24000)
+}
+
 /** 通用：GET 一个地址模板，{text} 换成要念的话。 */
 async function httpSynth(text, c) {
   const tpl = String(c.urlTemplate || '')
@@ -217,12 +234,13 @@ export async function textToSpeech(text, opt = {}, log) {
   if (!clean) throw new Error('没有要念的文字')
   let file = ''
   let engine = ''
-  const local = { cosyvoice: cosyvoiceSynth, gptsovits: gptsovitsSynth, http: httpSynth }[opt.engine]
+  const local = { cosyvoice: cosyvoiceSynth, gptsovits: gptsovitsSynth, http: httpSynth, breezeblue: breezeblueSynth }[opt.engine]
   if (local) {
     try {
       file = await local(clean, opt[opt.engine] || {})
       engine = opt.engine
     } catch (error) {
+      if (opt.engine === 'breezeblue') throw error
       log?.warn(`${opt.engine} 失败：${error.message} → 改用 Windows 语音`)
     }
   } else if (opt.engine !== 'windows' && edgeInstalled()) {

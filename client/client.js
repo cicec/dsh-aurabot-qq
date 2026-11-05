@@ -1344,6 +1344,7 @@ h(Card, { title: '群里什么时候必回', desc: '被 @、有人引用回复�
             { value: 'edge', label: '微软 edge-tts', desc: st.voice.edgeInstalled ? '在线，音色自然（已装好）' : '在线，音色自然（还没装）' },
             { value: 'cosyvoice', label: '本地 CosyVoice', desc: '自己部署的 CosyVoice 服务，可克隆音色' },
             { value: 'gptsovits', label: '本地 GPT-SoVITS', desc: 'GPT-SoVITS api_v2，用参考音频定音色' },
+            { value: 'breezeblue', label: 'BreezeBlue', desc: '云端语音，使用已保存的音色' },
             { value: 'http', label: '其他 HTTP 接口', desc: '任意返回音频的地址' },
             { value: 'windows', label: 'Windows 自带', desc: '离线可用，机械感重一些' },
           ])),
@@ -1376,6 +1377,10 @@ h(Card, { title: '群里什么时候必回', desc: '被 @、有人引用回复�
             h(Row, { key: 'u', label: '服务地址', hint: 'GPT-SoVITS 的 api_v2.py' }, f.text('voice.gptsovits.url', { size: 'wide', placeholder: 'http://127.0.0.1:9880' })),
             h(Row, { key: 'a', label: '参考音频路径', hint: '服务那台电脑上的路径' }, f.text('voice.gptsovits.refAudio', { size: 'wide' })),
             h(Row, { key: 'p', label: '参考音频的文字' }, f.text('voice.gptsovits.promptText', { size: 'wide' })),
+          ] : null,
+          draft.voice.engine === 'breezeblue' ? [
+            h(Row, { key: 'bb-key', label: 'API Key' }, f.text('voice.breezeblue.apiKey', { type: 'password', placeholder: draft.voice.breezeblue?.apiKeySet ? '已保存（不改就留空）' : '填入 BreezeBlue API Key' })),
+            h(Row, { key: 'bb-voice', label: 'Voice ID' }, f.text('voice.breezeblue.voiceId', { size: 'wide', placeholder: 'voc_…' })),
           ] : null,
           draft.voice.engine === 'http' ? h(Row, { label: '地址模板', hint: '{text} 会换成要念的话，返回 wav/mp3' }, f.text('voice.http.urlTemplate', { size: 'wide', placeholder: 'http://127.0.0.1:8000/tts?text={text}' })) : null,
           h(Row, { label: '短回复变语音的概率' }, f.percent('voice.autoChance')),
