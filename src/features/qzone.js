@@ -10,20 +10,22 @@ const toMin = (hhmm) => {
 }
 const dayKey = (d = new Date()) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 
-/** 给某一天排日记时间：窗口内随机 n 个时刻，两两间隔 ≥ gap 分钟。纯函数（rand 可注入）。 */
-export function planDiaryTimes({ timesPerDay, windowStart, windowEnd, minGapMinutes }, rand = Math.random) {
-  const a = toMin(windowStart)
+/** 在剩余时间窗内排日记时间；排不下时少写几篇，不缩短最小间隔。 */
+export function planDiaryTimes({ timesPerDay, windowStart, windowEnd, minGapMinutes }, rand = Math.random, fromMinute = 0) {
+  const a = Math.max(toMin(windowStart), fromMinute)
   const b = toMin(windowEnd)
-  const n = Math.max(0, Math.round(timesPerDay))
-  if (n === 0 || b <= a) return []
+  if (b <= a) return []
   const span = b - a
-  const gap = Math.min(minGapMinutes, Math.floor(span / Math.max(n, 1)))
+  const gap = Math.max(1, Math.ceil(minGapMinutes))
+  const n = Math.min(Math.max(0, Math.round(timesPerDay)), Math.ceil(span / gap))
+  if (n === 0) return []
   for (let attempt = 0; attempt < 200; attempt++) {
     const pts = Array.from({ length: n }, () => a + Math.floor(rand() * span)).sort((x, y) => x - y)
     if (pts.every((p, i) => i === 0 || p - pts[i - 1] >= gap)) return pts
   }
-  // 实在排不开就均分
-  return Array.from({ length: n }, (_, i) => a + Math.floor((span / n) * (i + 0.5)))
+  // 随机没排出来就居中排列，仍保留最小间隔。
+  const offset = Math.floor((span - 1 - (n - 1) * gap) / 2)
+  return Array.from({ length: n }, (_, i) => a + offset + i * gap)
 }
 
 export function createQzone({ getConfig, onebot, hub, log, onDiary, pickImage }) {
@@ -196,20 +198,32 @@ export function createQzone({ getConfig, onebot, hub, log, onDiary, pickImage })
   /** 每分钟调一次。 */
   async function tick() {
     const cfg = getConfig()
-    if (!cfg.enabled || !cfg.diary.enabled) return
+    if (!cfg.enabled || !cfg.diary.enabled || busy) return
     const s = state()
-    const today = dayKey()
+    const now = new Date()
+    const today = dayKey(now)
+    const nowMin = now.getHours() * 60 + now.getMinutes()
     if (s.plan.day !== today) {
-      s.plan = { day: today, times: planDiaryTimes(cfg.diary), done: [] }
+      s.plan = { day: today, times: planDiaryTimes(cfg.diary, Math.random, nowMin + 1), done: [] }
       save(s)
       log.info(`今天的日记时间：${s.plan.times.map((m) => `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`).join('、') || '（不写）'}`)
     }
-    const now = new Date()
-    const nowMin = now.getHours() * 60 + now.getMinutes()
-    const due = s.plan.times.find((m) => m <= nowMin && !s.plan.done.includes(m))
-    if (due === undefined) return
-    s.plan.done.push(due)
+    const due = s.plan.times.filter((m) => m <= nowMin && !s.plan.done.includes(m))
+    if (!due.length) return
+    // 一次消费所有到期任务，避免重启后每分钟补跑一篇。
+    s.plan.done.push(...due)
     save(s)
+    const latest = Math.max(...due)
+    // 留一分钟余量给定时器抖动；停机错过的任务直接跳过。
+    if (latest < nowMin - 1 || nowMin < toMin(cfg.diary.windowStart) || nowMin >= toMin(cfg.diary.windowEnd)) {
+      log.info('错过了日记时间，这次就不补写了')
+      return
+    }
+    const lastDiaryAt = s.history.reduce((last, entry) => entry.ok ? Math.max(last, entry.at) : last, 0)
+    if (lastDiaryAt && now.getTime() - lastDiaryAt < cfg.diary.minGapMinutes * 60_000) {
+      log.info('离上一篇日记还太近，这次先跳过')
+      return
+    }
     log.info('到点了，写一篇空间日记')
     await writeDiary()
   }

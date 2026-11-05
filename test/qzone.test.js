@@ -40,6 +40,63 @@ function entry(tid, extra = {}) {
   return { at: Date.now() - 60_000, text: '写了一条', ok: true, tid, dryRun: false, visibility: 'all', error: '', ...extra }
 }
 
+test('晚间启动：只排未来日记，过期任务一次跳过，到点正常发布且不连发', async (t) => {
+  const start = new Date(2026, 10, 5, 22, 53).getTime()
+  t.mock.timers.enable({ apis: ['Date'], now: start })
+  t.mock.method(Math, 'random', () => 0.5)
+  const day = '2026-11-05'
+  const diaryConfig = {
+    ...config,
+    diary: { ...config.diary, enabled: true, timesPerDay: 2, windowStart: '10:00', windowEnd: '23:30', minGapMinutes: 180 },
+  }
+  let generated = 0
+  const onebot = mockOnebot([{ tid: 'new-diary' }])
+  const diaryHub = { ...hub, async runSystemTurn() { generated++; return '今天聊了点小事，心情不错。' } }
+  const qzone = createQzone({
+    getConfig: () => diaryConfig,
+    onebot,
+    hub: diaryHub,
+    log: noopLog,
+  })
+  const saved = () => readJson(dataDir('diary.json'), () => ({}))
+
+  // 清空记录后在 22:53 启动：剩余时间只够一篇，不立刻生成或发布。
+  seed([])
+  await qzone.tick()
+  const futureTimes = saved().plan.times
+  assert.equal(futureTimes.length, 1)
+  assert.ok(futureTimes[0] > 22 * 60 + 53 && futureTimes[0] < 23 * 60 + 30)
+  assert.equal(generated, 0)
+  assert.equal(onebot.calls.length, 0)
+
+  // 恢复当天的旧计划：模拟之前遇到的 16:27、22:21 两条过期任务。
+  writeJson(dataDir('diary.json'), { plan: { day, times: [987, 1341, ...futureTimes], done: [] }, history: [] })
+  await qzone.tick()
+  assert.deepEqual(saved().plan.done, [987, 1341])
+  t.mock.timers.setTime(start + 60_000)
+  await qzone.tick()
+  assert.equal(generated, 0, '过期任务不会在下一分钟继续补跑')
+  assert.equal(onebot.calls.length, 0)
+
+  // 未来任务到点仍可正常写、发；重启后遇到挨得太近的旧任务也不会再发。
+  const dueAt = new Date(2026, 10, 5, 0, futureTimes[0]).getTime()
+  t.mock.timers.setTime(dueAt)
+  await qzone.tick()
+  assert.equal(generated, 1)
+  assert.equal(onebot.calls.length, 1)
+  assert.equal(onebot.calls[0].action, 'send_qzone_msg')
+  assert.equal(saved().history[0].tid, 'new-diary')
+  const state = saved()
+  state.plan.times.push(futureTimes[0] + 1)
+  writeJson(dataDir('diary.json'), state)
+  t.mock.timers.setTime(dueAt + 60_000)
+  const restarted = createQzone({ getConfig: () => diaryConfig, onebot, hub: diaryHub, log: noopLog })
+  await restarted.tick()
+  assert.equal(generated, 1, '实际间隔不足时不调用模型')
+  assert.equal(onebot.calls.length, 1, '实际发布时间间隔不足时跳过，不连发')
+  assert.ok(saved().plan.done.includes(futureTimes[0] + 1))
+})
+
 test('remove：删除成功后把本地记录标记为已删除', async () => {
   seed([entry('t1'), entry('t2')])
   const onebot = mockOnebot([{ tid: 't1' }])
