@@ -105,6 +105,7 @@ export const DEFAULTS = {
     attachImage: true, // 写日记时配一张图（优先今天她画的，其次今天收的表情包）
     minChars: 60,
     maxChars: 140,
+    writingPrompt: '', // 日记的额外写作要求；留空沿用默认写法
     visibility: 'all', // all | friends | selected | self | excluded，和 QQ 空间自身的可见范围一致
     audienceQQs: '', // selected / excluded 时可见（或不可见）的好友 QQ 号，换行或逗号分隔
   },
@@ -300,6 +301,7 @@ export function normalize(raw) {
   c.diary.attachImage = bool(c.diary.attachImage, true)
   c.diary.minChars = num(c.diary.minChars, 60, 10, 500)
   c.diary.maxChars = num(c.diary.maxChars, 140, 20, 1000)
+  c.diary.writingPrompt = String(c.diary.writingPrompt ?? '').trim().slice(0, 3000)
   c.diary.visibility = DIARY_AUDIENCES.includes(c.diary.visibility) ? c.diary.visibility : 'all'
   c.diary.audienceQQs = qqList(c.diary.audienceQQs).slice(0, 200).join('\n')
   c.speakUp.idleMinutes = num(c.speakUp.idleMinutes, 40, 5, 1440)

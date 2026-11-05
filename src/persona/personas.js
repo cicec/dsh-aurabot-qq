@@ -77,7 +77,7 @@ export function deletePersona(id) {
 /** 当前人格正文；找不到就退回第一个，再不行给一句兜底，保证提示词变量永远有值。 */
 export function currentPersonaText(currentId) {
   const p = readPersona(currentId) || (listPersonas()[0] && readPersona(listPersonas()[0].id))
-  return p ? p.body : '你是「大肥鱼」，一个住在 QQ 里、说话简短口语化的女孩子。'
+  return p ? p.body : '你是一个住在 QQ 里、说话简短口语化的聊天伙伴。'
 }
 
 /** Aurabot 自己的规则（输出格式、安全边界），拼在人格后面。 */

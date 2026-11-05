@@ -9,7 +9,7 @@
 export const POST_STYLES = {
   diary: {
     id: 'diary',
-    label: '大肥鱼日记',
+    label: '随手日记',
     desc: '跟空间日记同一风格：第一人称随手记，写今天看到啥、心里的感觉，不端着',
     words: [120, 300],
     titleHint: '像随手起的，可以短、可以带情绪，别写成新闻标题',
@@ -23,7 +23,7 @@ export const POST_STYLES = {
   },
   mix: {
     id: 'mix',
-    label: '肥鱼热搜',
+    label: '日记聊热搜',
     desc: '用日记的口吻写热搜：我刷到这条，我咋看，带点自己的碎碎念',
     words: [150, 500],
     titleHint: '半新闻半日记，可以带「我」在里面',
@@ -53,7 +53,7 @@ export function stylePrompt(styleId, ctx = {}) {
 
   if (styleId === 'diary') {
     lines.push(
-      '写法：第一人称「我」，像随手发的一条动态。可以写今天刷到这条新闻时的反应、联想到自己身上的小事、想吃的白米饭。',
+      '写法：第一人称「我」，像随手发的一条动态。可以写今天刷到这条新闻时的反应、联想到自己身上的小事、想吃的东西。',
       '不要「首先/其次/总之」这种结构，不要分小标题，不要写「综上所述」。',
       `篇幅 ${st.words[0]}~${st.words[1]} 字。`
     )

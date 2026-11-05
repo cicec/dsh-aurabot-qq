@@ -1538,6 +1538,8 @@ h(Card, { title: '群里什么时候必回', desc: '被 @、有人引用回复�
           h(Row, { label: '时间段', hint: '在这段时间里随机挑时间' }, f.text('diary.windowStart', { size: 'sm' }), h('span', { className: 'ab-muted' }, '到'), f.text('diary.windowEnd', { size: 'sm' })),
           h(Row, { label: '两篇至少隔' }, f.num('diary.minGapMinutes', { min: 0 }), h('span', { className: 'ab-muted' }, '分钟')),
           h(Row, { label: '字数' }, f.num('diary.minChars', { min: 10 }), h('span', { className: 'ab-muted' }, '到'), f.num('diary.maxChars', { min: 20 }), h('span', { className: 'ab-muted' }, '字')),
+          h(Row, { label: '写作要求', hint: '想让她怎么写，补充几句就好；留空就按她的人设自由写' },
+            h('textarea', { className: 'ab-textarea', rows: 3, maxLength: 3000, value: draft.diary.writingPrompt || '', placeholder: '比如：多写一点今天聊过的小事，像随手发的动态', onChange: (e) => setDraft(setPath(draft, 'diary.writingPrompt', e.target.value)) })),
           h(Row, { label: '日记配图', hint: '开着时每篇会从「今天她画的图 / 今天收的表情包」里挑一张配上去；没有合适的就只发文字' }, f.sw('diary.attachImage')),
           h(DiaryAudience, { draft, setDraft, toast }),
         ),

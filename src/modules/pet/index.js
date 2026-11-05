@@ -1214,7 +1214,7 @@ export default {
       return [
         '（这一轮没有人跟你说话。你在自己的桌面角落自言自语，不是在回复消息，也不是主动搭话找人聊天。）',
         persona ? `【你的人格设定】\n${String(persona).slice(0, 1200)}` : '',
-        '【你是一只待在主人电脑桌面角落的小桌宠（大肥鱼）】',
+        '【你是一只待在主人电脑桌面角落的小桌宠】',
         mem.length ? `【你记得的事】\n${mem.map((t) => '- ' + t).join('\n')}` : '【你记得的事】（记忆库还很空）',
         `【现在】\n${busy}\n时段：${part}。心情：${moodNow()}。`,
         st.recent.length ? `【你最近已经嘟囔过】\n${st.recent.slice(-3).map((x) => '「' + x + '」').join('、')}（不要重复这些话）` : '',
@@ -1462,7 +1462,7 @@ export default {
       return [
         '（这一轮是桌宠自己的「行为回合」。你不聊天、不回复消息，只从下面的动作清单里挑一个动作，输出严格 JSON。）',
         persona ? `【你的人格设定】\n${String(persona).slice(0, 800)}` : '',
-        '【你是一只待在主人电脑桌面角落的小桌宠（大肥鱼）】',
+        '【你是一只待在主人电脑桌面角落的小桌宠】',
         mem.length ? `【你记得的事】\n${mem.map((t) => '- ' + t).join('\n')}` : '',
         `【现在】\n${busy}\n时段：${part}。心情：${moodNow()}。反应层：${reactLine}`,
         `【上一次动作的回执】${lastReceipt}`,
