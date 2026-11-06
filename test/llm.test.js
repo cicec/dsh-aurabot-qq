@@ -6,6 +6,27 @@ const { askModel, modelReasoning, pickReasoningEffort, clearReasoningCache } = a
 
 const CFG = { model: { provider: 'p', model: 'm' } }
 
+test('后台请求携带路由会话标识：重试复用，不同调用独立', async () => {
+  clearReasoningCache()
+  const { dsh, calls } = fakeDsh({
+    reasoning: null,
+    async *stream(params, calls) {
+      if (calls.length === 1) {
+        yield { type: 'finish', reason: { kind: 'stop' } }
+        return
+      }
+      yield { type: 'text-delta', text: 'ok' }
+      yield { type: 'finish', reason: { kind: 'stop' } }
+    },
+  })
+  assert.equal(await askModel(dsh, { cfg: CFG, text: '整理一下记忆' }), 'ok')
+  assert.equal(calls.length, 2)
+  assert.match(calls[0].sessionId, /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/)
+  assert.equal(calls[1].sessionId, calls[0].sessionId)
+  await askModel(dsh, { cfg: CFG, text: '再整理另一个人的记忆' })
+  assert.notEqual(calls[2].sessionId, calls[0].sessionId)
+})
+
 /**
  * reasoning: undefined = 适配器报错（查不到）；null = 没有推理元数据；{efforts, default} = 支持
  */

@@ -173,6 +173,8 @@ export async function askModel (dsh, o) {
   const base = {
     provider: t.provider,
     model: t.model,
+    // 后台单次调用也需要路由标识；同一调用的重试共用，不同调用各自独立。
+    sessionId: randomUUID(),
     system: cleanText(o.system || ''),
     messages,
     maxTokens: o.maxTokens || 600,
