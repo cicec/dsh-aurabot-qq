@@ -434,7 +434,7 @@ export function createHub({ dsh, getConfig, log, onebot, stickers, tts, buildToo
     assertActive()
     const want = keyOf(target)
     const m = map()
-    if (want && m.chats[chat.chatId] && m.chats[chat.chatId].model !== want) {
+    if (want && m.chats[chat.chatId] && currentModelKey(agent, m.chats[chat.chatId].model) !== want) {
       if (applyModel(agent, target)) {
         m.chats[chat.chatId].model = want
         saveMap(m)
@@ -476,6 +476,17 @@ export function createHub({ dsh, getConfig, log, onebot, stickers, tts, buildToo
     return { provider: t.provider, model: t.model, ...(effort ? { reasoningEffort: effort } : {}) }
   }
   const keyOf = (t) => (t ? `${t.provider}::${t.model}::${t.reasoningEffort || ''}` : '')
+
+  function currentModelKey(agent, fallback) {
+    // DSH 会话里手动切模型时，不会更新 Aurabot 的会话映射。
+    try {
+      const selected = controller().agents?.selectionFor?.(agent)?.current
+      if (selected) return keyOf(selected)
+    } catch (error) {
+      log.debug('读取会话模型失败：', error.message)
+    }
+    return fallback
+  }
 
   /** 让聊天会话用面板里选的模型和思考强度；只改这个会话，不改 DSH 的默认模型。 */
   function applyModel(agent, target) {
