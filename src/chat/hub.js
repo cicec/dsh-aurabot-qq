@@ -11,7 +11,7 @@ import { homedir } from 'node:os'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import { dataDir, readJson, writeJson } from '../core/store.js'
 import { parseMessageEvent, gifFrames, segmentsOf } from './inbound.js'
-import { parseReply, bubbleDelay, wantsVoice, cleanOutboundText, cleanOutboundSegments } from './reply.js'
+import { parseReply, bubbleDelay, wantsVoice, isSilence, cleanOutboundText, cleanOutboundSegments } from './reply.js'
 import { decideGroupReply, engagedHint, pickAutoReply, policyFor, sameNameNote, topicRelevance } from './group-policy.js'
 import { checkAllowed, levelFor, presetFor, isOwner } from './access.js'
 import { fetchImage, segmentBytes } from '../core/net.js'
@@ -68,7 +68,7 @@ const sessionKey = (id) => {
 const captureStore = new AsyncLocalStorage()
 const failStore = new AsyncLocalStorage() // deliver 这一次里发失败的原因，好让调用方如实告诉她
 /**
- * 一轮结束时该发到 QQ 的文字：只认「这一轮最后一条 assistant 消息」里的 text 块。
+ * 从一条 assistant 消息里提取可发到 QQ 的 text 块。
  * 带工具调用的 assistant 消息是过程性发言（模型在调工具前写的计划/心里话），不是给用户看的回复；
  * 如果把它当回复补发，就会出现「模型把自己的思考发出来」——这种情况宁可沉默，也不要把过程性文字发出去。
  */
@@ -1060,15 +1060,24 @@ export function createHub({ dsh, getConfig, log, onebot, stickers, tts, buildToo
       // 这一轮按「主人说的」算；不然重开会话后在面板里让她改资料会报没权限。
       const src = event.data && event.data.source
       if (src && src.kind === 'user') st.directOwner = true
+      // QQ 私聊的插话会开启下一步。前一步已经正常给了正文，就留到整轮完成后一起发。
+      if (src?.kind === SOURCE_KIND && chatId.startsWith('private:') && st.replyStopped && !isSilence(st.text)) {
+        const replies = st.repliesBeforeSteer ??= []
+        replies.push(st.text)
+        st.text = ''
+        st.replyStopped = false
+      }
       return
     }
     if (event.type === 'assistant/message') {
       const d = event.data || {}
       if (d.interrupted) return
-      // 最后一条 assistant 消息才是本轮回复；总是覆盖（空也覆盖），
-      // 否则最后一条是空的（或只有工具调用）时会拿上一条过程性文字补发，把思考发出去。
+      // 没有新 QQ 消息隔开时，仍然只认最后一条，空回复也覆盖过程中的发言。
+      if (st.lastTurn !== d.turn) st.repliesBeforeSteer = undefined
       st.lastTurn = d.turn
       st.text = assistantReplyText(d.message)
+      const finish = d.stream?.at(-1)?.chunk
+      st.replyStopped = finish?.type === 'finish' && finish.reason?.kind === 'stop'
       return
     }
     if (event.type === 'turn/end') {
@@ -1079,11 +1088,14 @@ export function createHub({ dsh, getConfig, log, onebot, stickers, tts, buildToo
       const d = event.data || {}
       const completed = d.reason && d.reason.kind === 'completed'
       const text = st.lastTurn === d.turn ? st.text : ''
+      const beforeSteer = st.lastTurn === d.turn ? st.repliesBeforeSteer : undefined
       const sys = st.system
       const wantVoice = Boolean(st.wantVoice)
       const autoReply = st.autoReply
       st.autoReply = null
       st.text = ''
+      st.replyStopped = false
+      st.repliesBeforeSteer = undefined
       // 上一轮还在跑时新消息已经排队给「下一轮」：这一轮 turn/end 不能把下一轮的说话人清掉（#90）
       st.senders = st.pendingSenders || new Set()
       st.pendingSenders = new Set()
@@ -1102,9 +1114,11 @@ export function createHub({ dsh, getConfig, log, onebot, stickers, tts, buildToo
         return
       }
       if (chatId.startsWith('system:')) return // 已超时的后台轮次不能误发到 QQ
-      if (!text) return release(chatId)
+      // 最后明确选择沉默时照旧。最后一步没给正文时，仍可发送插话前已完成的回复。
+      const reply = beforeSteer?.length && (!text || !isSilence(text)) ? [...beforeSteer, text].filter(Boolean).join('\n') : text
+      if (!reply) return release(chatId)
       // 发完再放开：发送期间来的消息也攒到下一段
-      deliver(chatId, text, { wantVoice, autoReply, userText: st.lastText || '', own: true }).catch((error) => log.warn('发送出错：', error.message)).finally(() => release(chatId))
+      deliver(chatId, reply, { wantVoice, autoReply, userText: st.lastText || '', own: true }).catch((error) => log.warn('发送出错：', error.message)).finally(() => release(chatId))
     }
   }
 

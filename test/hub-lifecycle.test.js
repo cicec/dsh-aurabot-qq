@@ -118,6 +118,31 @@ function setup(t, { cfg = config(), brain = async () => '', hooks, buildTools, o
   return { hub, fake, calls }
 }
 
+test('QQ 私聊插话后按顺序发两段已完成的回复，跳过工具调用前的文字', async (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout'] })
+  const s = setup(t, { cfg: config({ dryRun: false }) })
+  await s.hub.pushToSession(ownerChat, [{ type: 'text', text: '第一条消息' }], OWNER)
+  const agent = [...s.fake.agents.values()][0]
+  const emit = (type, data) => s.hub.onSessionEvent(agent.session, { type, data })
+  const reply = (step, content, kind = 'stop') => emit('assistant/message', {
+    turn: 2, step, message: { content }, stream: [{ chunk: { type: 'finish', reason: { kind } } }],
+  })
+  const sent = () => s.calls.filter((x) => x.action === 'send_private_msg')
+    .map((x) => x.params.message.filter((seg) => seg.type === 'text').map((seg) => seg.data.text).join(''))
+
+  emit('user/message', { source: { kind: 'aurabot' } })
+  reply(1, [{ type: 'text', text: '先查一下' }, { type: 'tool-call', name: 'lookup' }], 'tool-calls')
+  reply(2, [{ type: 'text', text: '第一段正文' }])
+  emit('user/message', { source: { kind: 'aurabot' } })
+  reply(3, [{ type: 'reasoning', text: '内部分析' }, { type: 'text', text: '第二段正文' }])
+  assert.deepEqual(sent(), [])
+  emit('turn/end', { turn: 2, reason: { kind: 'completed' } })
+  await settle()
+  t.mock.timers.tick(5000)
+  await settle()
+  assert.deepEqual(sent(), ['第一段正文', '第二段正文'])
+})
+
 test('同一会话连续重载两轮：旧工具、上下文、限制全部清理，重新挂新工具', { timeout: 5000 }, async (t) => {
   const data = mkdtempSync(join(root, 'host-'))
   process.env.AURABOT_DATA_DIR = data
