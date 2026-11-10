@@ -312,6 +312,25 @@ export function createHub({ dsh, getConfig, log, onebot, stickers, tts, buildToo
     }
   }
 
+  // 重启后从聊天流水恢复私聊的冷场计时，每个 QQ 号只在没有内存记录时查一次。
+  function lastPrivateActivity(qq) {
+    const id = String(qq || '')
+    if (!id) return 0
+    if (lastPrivateAt.has(id)) return lastPrivateAt.get(id)
+    let latest = 0
+    for (const day of chatLogDays().reverse()) {
+      for (const row of chatLogOf(day)) {
+        if (row?.chatId !== `private:${id}` || row.via) continue
+        if (String(row.uid || '') !== id && !(row.who === 'bot' && !row.uid)) continue
+        const at = Number(row.t)
+        if (Number.isFinite(at) && at > latest) latest = at
+      }
+      if (latest) break
+    }
+    lastPrivateAt.set(id, latest)
+    return latest
+  }
+
   function forgetChatLog(qq, query) {
     let marked = 0
     for (const day of chatLogDays()) {
@@ -2467,7 +2486,7 @@ export function createHub({ dsh, getConfig, log, onebot, stickers, tts, buildToo
     stats: () => ({ ...stats }),
     get lastChatAt() { return lastChatAt },
     get lastOwnerChatAt() { return lastOwnerChatAt },
-    lastPrivateAt: (qq) => lastPrivateAt.get(String(qq)) || 0,
+    lastPrivateAt: lastPrivateActivity,
     get lastBotToOwner() { return lastBotToOwner },
     get selfId() { return selfId },
     groupNames,

@@ -174,7 +174,7 @@ export function createSpeakUp({ getConfig, hub, log, isMuted, memory }) {
   }
 
   // 私聊里的「最近一次来往」：只看和主人的私聊，群里再热闹也不影响她想你
-  const lastPrivateAt = () => Math.max(hub.lastOwnerChatAt || 0, hub.lastBotToOwner?.at || 0)
+  const lastPrivateAt = (qq) => Math.max(hub.lastPrivateAt?.(qq) || 0, hub.lastOwnerChatAt || 0, hub.lastBotToOwner?.at || 0)
 
   // 每次换个由头，免得句句都是「在干嘛」
   const ANGLES = [
@@ -190,7 +190,7 @@ export function createSpeakUp({ getConfig, hub, log, isMuted, memory }) {
   async function fire(reason = '定时', { nudge = false } = {}) {
     const cfg = getConfig()
     const owner = cfg.ownerName || '主人'
-    const idle = Math.round((Date.now() - lastPrivateAt()) / 60000)
+    const idle = Math.round((Date.now() - lastPrivateAt(cfg.ownerQQ)) / 60000)
     const angle = ANGLES[Math.floor(Math.random() * ANGLES.length)]
     const prompt = nudge
       ? `【系统提醒，不是${owner}说的话】你刚才跟${owner}说「${String(hub.lastBotToOwner?.text || '').slice(-60)}」，${owner}已经 ${idle} 分钟没回了。可以轻轻追一句（比如「人呢」「睡着啦？」，或者换个话题），别催、别抱怨；觉得${owner}在忙就只回 [沉默]。`
@@ -247,7 +247,7 @@ export function createSpeakUp({ getConfig, hub, log, isMuted, memory }) {
     if (!s.nextAt) schedule(s, c)
     const h = new Date().getHours()
     const awake = h >= c.awakeFrom && h < c.awakeTo
-    const idleOk = Date.now() - lastPrivateAt() > c.idleMinutes * 60_000
+    const idleOk = Date.now() - lastPrivateAt(cfg.ownerQQ) > c.idleMinutes * 60_000
     // 追问：她最后一句是在问主人、主人 15~40 分钟没回，有一半的机会轻轻追一句（每句最多追一次，不占每天的次数）
     const lb = hub.lastBotToOwner || { at: 0, text: '' }
     const quiet = Date.now() - lb.at

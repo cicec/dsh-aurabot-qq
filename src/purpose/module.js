@@ -84,7 +84,10 @@ export function createPurpose({ getConfig, setConfig, hub, log, isMuted, mood, m
   const memoryOf = () => { try { return memory?.() || null } catch { return null } }
   // 下面的 friend 是主动搭话白名单里的 QQ 号，不传就是主人。朋友各有各的状态，素材只看和这个人的私聊、关于这个人的记忆。
   const chatIdOf = (cfg, friend) => `private:${friend || cfg.ownerQQ}`
-  const lastPrivateAt = (cfg, friend) => friend ? (hub?.lastPrivateAt?.(friend) || 0) : Math.max(hub?.lastOwnerChatAt || 0, hub?.lastBotToOwner?.at || 0)
+  const lastPrivateAt = (cfg, friend) => {
+    const at = hub?.lastPrivateAt?.(friend || cfg.ownerQQ) || 0
+    return friend ? at : Math.max(at, hub?.lastOwnerChatAt || 0, hub?.lastBotToOwner?.at || 0)
+  }
   const stateFile = (friend) => dataDir('purpose', ...(friend ? ['friends', `${friend}.json`] : ['purpose-state.json']))
   const nudgeFile = () => dataDir('purpose', 'nudge.json')
 
