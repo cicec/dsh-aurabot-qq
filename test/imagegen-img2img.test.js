@@ -292,6 +292,13 @@ test('qq_draw_image 的 image 可选；quote 来源传递；沿用发送、存�
   assert.equal(plain.ok, true)
   assert.match(s.events[1].text, /^按提示词画了一张图/)
   assert.equal(s.generated[1].args.image, undefined)
+
+  cfg.imageGen.remember = false
+  const unrecorded = await s.tool.execute({ prompt: '再画一张' })
+  assert.equal(unrecorded.ok, true)
+  assert.equal(s.sent.length, 3)
+  assert.deepEqual(readFileSync(unrecorded.path), OTHER)
+  assert.equal(s.events.length, 2)
 })
 
 test('ownerOnly 和 img2img 在读图前检查；拒绝时不生成、不发送、不记经历', async (t) => {
