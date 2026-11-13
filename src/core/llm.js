@@ -170,6 +170,11 @@ export async function askModel (dsh, o) {
     content = await att.admitPromptContent(content)
   }
   const messages = [{ role: 'user', id: randomUUID(), content, source: { kind: 'plugin', plugin: 'aurabot' } }]
+  // TODO(临时兼容)：火山方舟的 Kimi K3.1 Pro 只接受 temperature=1，其他值会返回 400。
+  // 等 DSH 模型适配层能按模型处理固定采样参数后，移除此覆盖。
+  const temperature = t.provider === 'volcengine' && t.model === 'kimi-k3.1-pro'
+    ? 1
+    : (o.temperature ?? 0.3)
   const base = {
     provider: t.provider,
     model: t.model,
@@ -178,7 +183,7 @@ export async function askModel (dsh, o) {
     system: cleanText(o.system || ''),
     messages,
     maxTokens: o.maxTokens || 600,
-    temperature: o.temperature ?? 0.3,
+    temperature,
   }
   let effort = await pickReasoningEffort(dsh, t.provider, t.model, o.reasoningEffort === undefined ? 'low' : o.reasoningEffort)
   let widened = false
