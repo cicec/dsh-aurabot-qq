@@ -51,6 +51,7 @@ export function createLocal({ getConfig, log }) {
     const spec = SLOTS[slot]
     const file = pathOf(slot)
     const t = Date.now()
+    const child = log.child ? log.child('local') : log
     // 生视频比别的慢得多，超时可以在面板单独调
     const timeoutMs = slot === 'video' ? (Number(getConfig().local?.videoTimeoutMin) || 20) * 60_000 : spec.timeoutMs
     try {
@@ -60,7 +61,6 @@ export function createLocal({ getConfig, log }) {
       const fn = mod.default || mod.run
       if (typeof fn !== 'function') throw new Error(`${spec.file} 里没有 export default 的函数`)
       mkdirSync(outDir(), { recursive: true })
-      const child = log.child ? log.child('local') : log
       let timer
       const result = await Promise.race([
         fn({ ...args, outDir: outDir(), log: child }),
@@ -70,7 +70,7 @@ export function createLocal({ getConfig, log }) {
       return result
     } catch (error) {
       last[slot] = { ok: false, at: Date.now(), message: String(error.message || error).slice(0, 300) }
-      log.warn(`本地接口「${spec.title}」出错：`, last[slot].message)
+      child.warn(`本地接口「${spec.title}」出错：`, last[slot].message)
       throw error
     }
   }
