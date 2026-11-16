@@ -376,18 +376,16 @@ export function parseReply(text, options) {
     quoted = true
   }
   if (items.length === 0) return { silent: true, items: [] }
-  return { silent: false, items: capBubbles(items) }
+  return { silent: false, items: capBubbles(items, options?.maxTextBubbles ?? 5) }
 }
 
-const MAX_BUBBLES = 5
-
-/** 文字气泡最多 5 条，多出来的并进最后一条（防止刷屏）。 */
-function capBubbles(items) {
+/** 文字气泡超过上限时，多出来的并进最后一条（防止刷屏）。 */
+function capBubbles(items, maxTextBubbles) {
   const texts = items.filter((i) => i.kind === 'text')
-  if (texts.length <= MAX_BUBBLES) return items
-  const keep = new Set(texts.slice(0, MAX_BUBBLES - 1))
-  const tail = texts.slice(MAX_BUBBLES - 1)
-  const merged = { kind: 'text', value: tail.map((t) => t.value).join('\n') }
+  if (texts.length <= maxTextBubbles) return items
+  const keep = new Set(texts.slice(0, maxTextBubbles - 1))
+  const tail = texts.slice(maxTextBubbles - 1)
+  const merged = { ...tail[0], value: tail.map((t) => t.value).join('\n') }
   const out = []
   let placed = false
   for (const it of items) {

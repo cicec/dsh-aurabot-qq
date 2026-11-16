@@ -1536,6 +1536,10 @@ body[data-ds-dark-theme] .ab-root,.ab-root.ab-dark{--ab-shadow:0 1px 2px rgba(0,
       const overrides = draft.group.overrides || {}
       const [newGid, setNewGid] = useState('')
       return h('div', { className: 'ab-grid' },
+        h(Card, { title: '私聊回复' },
+          h(Row, { label: '一轮最多发几条文字', hint: '多出来的文字会并到最后一条里。表情包、图片和语音单独算。' },
+            f.num('chat.privateMaxTextBubbles', { min: 1, max: 20 }), h('span', { className: 'ab-muted' }, '条')),
+        ),
         h(Card, { title: '连发合并', right: f.sw('merge.enabled'), desc: '人常常一口气发好几句。打开后ta会等对方说完再一起回，而不是一句一回。' },
           h(Row, { label: '对方停顿多久算说完' }, f.range('merge.waitSec', 0.5, 10, 0.5, (v) => v + ' 秒')),
           h(Row, { label: '最多等多久', hint: '对方一直在发也最多等这么久' }, f.range('merge.maxSec', 2, 30, 1, (v) => v + ' 秒')),

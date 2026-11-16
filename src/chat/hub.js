@@ -982,7 +982,10 @@ export function createHub({ dsh, getConfig, log, onebot, stickers, tts, buildToo
     }
     if (disposed) return
     text = cleanOutboundText(text, { ...cleaningFor(chatId), onPromptDecision: (allow) => { outputScope.getStore().allowPromptEcho = allow } })
-    const r = parseReply(text, cleaningFor(chatId))
+    const r = parseReply(text, {
+      ...cleaningFor(chatId),
+      maxTextBubbles: chatId.startsWith('private:') ? cfg.chat?.privateMaxTextBubbles : undefined,
+    })
     if (r.silent) return silenceTurn(chatId)
     let items = r.items
     // 对方明确要语音、她却只打了字：整段改成语音发（模型偶尔会忘，这里兜底）
